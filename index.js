@@ -6,129 +6,145 @@ const port = 3000;
 app.use(express.json())
 
 
-const productions = []; 
+const orders = [];
 
-function requestMethod(require, response, next) {
+/* Esse middleware é utilizado em todas rotas que recebem o parâmetro ID,  ele verifica se o ID passado existe. 
+Se não existi ele retorna um erro, caso contrário permite que a requisição continuae normalmente; */
 
-console.log(require.method + "-" + require.url);
+function checkId (request, response, next) {
 
+    const { id } = request.params
 
-
-//console.timeEnd(require.method + "-" + require.url);
-
-next()
-
-}
-
-function checkId(require, response, next) {
-
-    const {id} = require.params
-    
-    const orderIndex = productions.findIndex(request => request.id === id)
+    const orderIndex = orders.findIndex(require => require.id === id)
 
     if (orderIndex < 0) {
 
-return response.status(400).json({menssage: "Project not found"})
+        return response.status(400).json({ menssage: "Project not found" })
 
     }
 
 
-next();
+
+ request.index = orderIndex;
+ request.id = id;
+
+    next()
+
+};
+
+// Esse middleware é chamado em todas requisições e tem um console.log que mostra o método da requisiçao.
+
+function  requestMethod (request, response, next) {
+
+    console.log(request.method + "-" + request.url);
+
+
+    next();
 }
 
+// Rota que lista todos os pedidos já feitos.
 
-app.get('/order', requestMethod,  (require, response) => {
+app.get('/orders', requestMethod, (request, response) => {
 
-return response.json(productions)
+    return response.json(orders)
+
+})
+// Essa rota recebe o id nos parâmentro e retorna um pedido específico.
+
+app.get('/orders/:id', requestMethod, checkId, (request, response) => {
+
+const idRequest = orders.filter(value => value.id === request.params.id);
+response.json(idRequest);
+    
+    
 
 })
 
-app.post('/order', requestMethod, (require, response) => {
+// A rota post recebe o pedido do cliente, nome do cliente e valor do pedido. Informações passada dentro do corpo body. 
 
-    const {order, clienteName, price, status} = require.body;
+app.post('/orders', requestMethod,  (request, response) => {
 
-    const production = {
+    const { order, clienteName, price,} = request.body; //informações que vem do body.
+
+    const processOrder = {
 
         id: uuid.v4(),
         order,
         clienteName,
         price,
-        status
+        status: "em preparação"
     }
 
-    productions.push(production);
+    orders.push(processOrder); // Aqui a variável é passada para dentro do array
 
-    return response.status(201).json(production);
+    return response.status(201).json(processOrder);
 
 
 });
 
+// Essa rota altera os dados do pedido já feito, os dados do pedido e enviado pelo parâmetro da rota id.
 
-app.put('/order/:id', checkId, requestMethod , (require, response ) => {
+app.put('/orders/:id', checkId, requestMethod, (request, response) => {
 
-const {id} = require.params;  // O require.params recebe os parâmetros que vem da rota. Nesse caso o id
-const {order, clienteName, price, status} = require.body;
-
-
-const newOrder = {
-
-    id, 
-    order,
-    clienteName, 
-    price,
-    status
-
-}
+    const { id } = request.params;  // O require.params recebe os parâmetros que vem da rota. Nesse caso o id.  
+    const { order, clienteName, price,} = request.body;
 
 
-const orderIndex = productions.findIndex(request => request.id === id)  //request é uma variável interada dentro do vetor
+    let newOrder = {
 
-productions[orderIndex] = newOrder; // acesso o vetor -productions- acesso o index -orderIndex- e atirbuo a newOrder
+        id,
+        order,
+        clienteName,
+        price,
+        status: "em preparação"
 
-return response.json(newOrder);
+    }
+
+
+    const orderIndex = orders.findIndex(require => require.id === id)  //request é uma variável interada dentro do vetor. Essa variável da posição 'X' vai ser atualizada pela variável newOrder.
+
+    orders[orderIndex] = newOrder; // // O array recebe pelo index a posição da order que vai receber o objeto atualizado peo newOrder
+
+    return response.json(newOrder);
 
 });
 
 
-app.delete('/order/:id', checkId, requestMethod, (require, response) => {
+// Essa rota deleta o pedido onde ela recebe o id do pedido enviado pelo parâmetro da rota. 
 
-const {id} = require.params; 
+app.delete('/orders/:id', checkId, requestMethod, (request, response) => {
 
-const orderIndex = productions.findIndex(request => request.id === id)  //request é uma variável interada dentro do vetor
+    const { id } = request.params;
 
-productions.splice(orderIndex,1);
+    const orderIndex = orders.findIndex(require => require.id === id)  //request é uma variável interada dentro do vetor
 
-return response.status(204).send();
+    orders.splice(orderIndex, 1);
+
+    return response.status(204).send();
 
 })
 
-app.patch('/order/:id', checkId, requestMethod, (require, response) => {
+// Essa rota recebe o id nos parâmetros e assim que ela é chamada, altera o status do pedido recebido pelo id para "Pronto".
 
-const {id} = require.params;
-const {order, clienteName, price, status} = require.body;
+app.patch ('/orders/:id', checkId, requestMethod, (request, response) => {
+    
+const index = request.index; // Essa variável da posição 'X' vai ser atualizada pela variável newIndex
+const id = request.id;
 
-
-const changeOrder = {
-
-id,
-order,
-clienteName,
-price,
-status
-
-}
+const {order, clienteName, price} = orders[index];
 
 
-const orderIndex = productions.findIndex(request => request.id === id)
+const newIdex = {id, order, clienteName, price, status: "pronto"};
 
-productions[orderIndex] = changeOrder; // acesso o vetor -productions- acesso o index -orderIndex- e atirbuo a changeOrder
+orders[index] = newIdex  
 
-  return response.json(changeOrder);
+return response.json(newIdex);
+
 
 })
 
 app.listen(port, () => {
 
-console.log('😠 active server on port 3000');
+    console.log('😠 active server on port 3000');
 
 })
